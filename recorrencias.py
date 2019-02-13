@@ -1,26 +1,24 @@
-import os, os.path			# Funções do os
-import xlutils, xlrd, xlwt	# Manage xls file
-import logging				# Logs
-import	unidecode			# Remover acentos
+import xlrd, xlsxwriter		# Manage xls file
+import unidecode			# Remover acentos
 import re 					# Tratamento específico de string
 import collections			# Criar nested dictionary (relação solicitante/divisao palavra)
 
 def main():
 
 	# Abre os sats
-	workbook = xlrd.open_workbook('')
+	workbook_sats = xlrd.open_workbook('')
 
 	# Abre o spreadsheet dos sats
-	sheet = workbook.sheet_by_index(0)
+	sheet_sats = workbook_sats.sheet_by_index(0)
 
 	# dc_ocorrencia
-	col_ocorrencia = sheet.col(8)
+	col_ocorrencia = sheet_sats.col(8)
 
 	# nm_solicitante
-	col_solicitante = sheet.col(1)
+	col_solicitante = sheet_sats.col(1)
 
 	# fk_cd_divisao
-	col_divisao = sheet.col(3)
+	col_divisao = sheet_sats.col(3)
 
 	# Pegas todas as ocorrências e já as transforma em string
 	ocorrencias = [str(ocorrencia) for ocorrencia in col_ocorrencia]
@@ -34,10 +32,10 @@ def main():
 	divisoes = [str(divisoes) for divisoes in col_divisao]
 	del divisoes[0]  # Deleta o nome da coluna (fk_cd_divisao) da lista
 
-	# Arquivos que vão ser escrito os dados extraídos
-	arquivo_ocorrencia 	= open('total de ocorrencias.txt', 			'w+')
-	arquivo_solicitante	= open('ocorrencia por solicitante.txt', 	'w+')
-	arquivo_divisao		= open('ocorrencia por divisao.txt',		'w+')
+
+	txt_ocorrencias		= open(r'total de ocorrencias.txt', 			'w+')
+	txt_solicitantes	= open(r'ocorrencia por solicitante.txt', 	'w+')
+	txt_divisao			= open(r'ocorrencia por divisao.txt', 		'w+')
 
 
 	#########################################
@@ -54,33 +52,46 @@ def main():
 
 	# Adiciona as palavras e suas ocorrencias ao dicionario
 	dic_ocorrencias = conta_palavras(ocorrencias, dic_ocorrencias)
+	#print('Ocorrencias Total:\n{' + '\n' + '\n'.join('\t{}:{}'.format(k, v) for k, v in dic_ocorrencias.items()) + '\n' + '}')
 
-	# Adiciona todas as palavras encontradas por ocorrencia
-	arquivo_ocorrencia.write('Ocorrencias Total:\n{' + '\n' + '\n'.join('\t{}:{}'.format(k, v) for k, v in dic_ocorrencias.items()) + '\n' + '}')
-	arquivo_ocorrencia.close()
+	# Escreve as ocorrências no formato CSV
+	for palavra, ocorrencia in dic_ocorrencias.items():
+		txt_ocorrencias.write('{};{};'.format(palavra, ocorrencia))
+
+
 	
-
 	#########################################
 	#										#
 	#	Faz o tratamento dos solicitantes 	#
 	#										#
 	#########################################
 
-	
 	# Limpa os nomes e deixa tudo lowercase
 	solicitantes = limpa_solicitantes(solicitantes)
 
 	# Cria o dicionario principal
-	palavra_por_solicitante = collections.defaultdict(dict)
+	dic_solicitantes = collections.defaultdict(dict)
 
 	# Adiciona os solicitantes como [key]s do dicionario
-	palavra_por_solicitante = adiciona_solicitantes(solicitantes, palavra_por_solicitante)
+	dic_solicitantes = adiciona_solicitantes(solicitantes, dic_solicitantes)
 
 	# Relaciona quem fez a ocorrencia e quais foram as palavras
-	palavra_por_solicitante = relaciona_solicitante_palavras(ocorrencias, palavra_por_solicitante, solicitantes)
-	
-	arquivo_solicitante.write('Palavras Por Solicitante\n{' + '\n' + '\n'.join('\t{}:\n\t\t{}'.format(k, v) for k, v in palavra_por_solicitante.items()) + '\n' + '}')
-	arquivo_solicitante.close()
+	dic_solicitantes = relaciona_solicitante_palavras(ocorrencias, dic_solicitantes, solicitantes)
+
+	# Escreve as ocorrências por solicitante no formato CSV
+	for solicitante, palavras in dic_solicitantes.items():
+
+		# Escreve "[solicitante];"
+		txt_solicitantes.write('{};'.format(solicitante))
+
+		# Separa as palavras do formato "[key]:[value]"
+		# E mantém apenas o [key]
+		for palavra in palavras:
+
+			# Escreve "[palavra];[ocorrencias];"
+			txt_solicitantes.write('{};{};'.format(palavra, dic_solicitantes[solicitante][palavra]))
+			
+		
 
 	#####################################
 	#									#
@@ -100,11 +111,20 @@ def main():
 	# Relaciona as palavras com as divisões
 	dic_divisoes = relaciona_divisao_palavras(ocorrencias, dic_divisoes, divisoes)
 
+	# Escreve as ocorrências por divisao formato CSV
+	for divisao, palavras in dic_divisoes.items():
 
-	arquivo_divisao.write('{' + '\n' + '\n'.join('\t{}:\n\t\t{}'.format(k, v) for k, v in dic_divisoes.items()) + '\n' + '}')
-	arquivo_divisao.close()
+		# Escreve "[divisao];"
+		txt_divisao.write('{};'.format(divisao))
 
+		# Separa as palavras do formato "[key]:[value]"
+		# E mantém apenas o [key]
+		for palavra in palavras:
 
+			# Escreve "[palavra];[ocorrencias];"
+			txt_divisao.write('{};{};'.format(palavra, dic_divisoes[divisao][palavra]))
+			
+		
 	return
 
 
@@ -127,38 +147,38 @@ def limpa_ocorrencias(col):
 		remove [text:'] do começo de todas a strings (vem por default assim)
 	}
 
-	rstrip('\'!?\\r'){
-		remove os [', \r, !, ?] do final das strings
-	}
-
-	replace('\\r\\n', ' '){
-		remove os trailling characters [\r\n] que não foram pegos por estarem no meio da string (nessa ordem \r\n, pois parece ser o padrão)
-		e adiciona um espaço no lugar deles
-	}
-
-	replace(',' | ':' | '!' | '"' | '(' | ')', ''){
-		remove [', :, !, ", (, )] do meio das strings. Teve que ser 1 por vez porque o replace não pega [char] e sim uma literal
-	}
-
-	lower = tudo lowercase
-	unidecode = tira os acentos
-
-	# Serve para manter ips e emails
-	re.sub('\.(?![a-zA-Z0-9]{2})') {
-		'\.' 				Considera '.' como uma literal
-		'()' 				Retorna o começo e fim da string dentro dos paranteses
-		'?![a-z0-9]' 		Considera '.' APENAS se ele NÃO estiver seguido de caracteres hexadecimais (a-z, 0-9)
-		?! 					Matches string1(.) ONLY if it is not followed by string2(range(a-z0-9))
-		'{2}' 				Especifica que EXATAMENTE 3 cópias da expressão (no caso [a-z0-9]), se não, desconsidera a string
+	rstrip('\'!?'){
+		remove [', !, ?] do final das strings
 	}
 	"""
 
 	for string in col:
 
-		col[i] = string.replace('text:\'', '').rstrip('\'!?\\r').replace('\\r\\n', ' ').replace(',', '').replace(':', '').replace('!', '').replace('"', '').replace('(', '').replace(')', '').lower()
-		col[i] = re.sub('\.(?![a-z0-9]{2})', '', col[i])
+		# Explicado no bloco acima
+		col[i] = string.replace('text:\'', '').rstrip('\'!?')
+
+		# Remove [\r\n] das strings NESSA ORDEM
+		col[i] = col[i].replace(r'\r\n', ' ')
+
+		# Remove [\r] soltos no meio do texto
+		col[i] = col[i].replace(r'\r', ' ')
+
+		# Deixa tudo lower case
+		col[i] = col[i].lower()
+
+		# Remove acentos das strings
 		col[i] = unidecode.unidecode(col[i])
-		i += 1		
+
+		# Remove caracteres especiais das strings
+		col[i] = re.sub('[\.\+\-\*\'\(\)\\\\/=",@!:_]+', ' ', col[i])
+
+		# Remove trailling whitespace [' '] do começo e fim das strings
+		col[i] = col[i].strip()
+
+		# Remove espaços extras entre as strings
+		col[i] = re.sub(' +', ' ', col[i])
+
+		i += 1
 
 	return col
 
@@ -224,7 +244,12 @@ def limpa_solicitantes(col):
 
 	for solicitante in col:
 
+		# Explicado acima
 		col[i] = solicitante.replace('text:\'', '').rstrip('\'').lower()
+
+		# Remove caracteres especiais dos nomes
+		col[i] = re.sub('[\.\+\-\*\'\(\)\\\\/=",@!:_]+', ' ', col[i])
+
 		i += 1
 
 	return col
@@ -250,7 +275,7 @@ def adiciona_solicitantes(solicitantes, dic_solicitantes):
 				pass
 			else:
 				# Se [solicitante] não está no dicionario, coloca junto com as palavras
-				dic_solicitantes[solicitante]['palavras'] = {}
+				dic_solicitantes[solicitante] = {}
 		except KeyError as e:
 			print('error: ' + e)
 			dic_solicitantes[solicitante] = 1
@@ -261,14 +286,13 @@ def adiciona_solicitantes(solicitantes, dic_solicitantes):
 #####################################################################
 #																	#
 #	relaciona_solicitante_palavras(ocorrencias, dic_solicitantes)	#
-#						padroniza as strings						#
-#	(tira acento, caracteres especiais, trailling characters, etc)	#
+#					Relaciona quais palavras foram 					#
+#			usadas por [solicitante] numa [ocorrencia]				#
 #																	#
 #####################################################################
 
 
 def relaciona_solicitante_palavras(ocorrencias, dic_solicitantes, solicitantes):
-
 	# Pra iterar em cada ocorrencia
 	i = 0
 
@@ -288,20 +312,19 @@ def relaciona_solicitante_palavras(ocorrencias, dic_solicitantes, solicitantes):
 				if not len(word) <= 2 or word == 'rg':
 					# Se a [word] já está no dicionario do [solicitante] que está fazendo a ocorrencia
 					# Adiciona +1 ocorrencia pra [word] nesse [solicitante]
-					if word in dic_solicitantes[solicitante]['palavras']:
-						dic_solicitantes[solicitante]['palavras'][word] += 1
+					if word in dic_solicitantes[solicitante]:
+						dic_solicitantes[solicitante][word] += 1
 
 					# Se a [word] não está no dicionario do [solicitante]
 					# Adiciona-a e já coloca que ela tem 1 ocorrencia
 					else:
-						dic_solicitantes[solicitante]['palavras'][word] = 1
+						dic_solicitantes[solicitante][word] = 1
 
 
 			# Para ficar sincronizado a ocorrencia com o solicitante
 			i+= 1
 
 			break
-
 	return dic_solicitantes
 
 
@@ -358,7 +381,7 @@ def agrupa_divisoes(divisoes, dic_divisoes):
 				pass
 			else:
 				# Se [numero] não está no dicionario, coloca junto com o dicionario ['palavras']
-				dic_divisoes[numero]['palavras'] = {}
+				dic_divisoes[numero] = {}
 		except KeyError as e:
 			print('error: ' + e)
 			dic_divisoes[numero] = 1
@@ -367,11 +390,12 @@ def agrupa_divisoes(divisoes, dic_divisoes):
 	return dic_divisoes
 
 
-#
-#
-#
-#
-#
+#############################################################################
+#																			#
+#	  relaciona_divisao_palavras(ocorrencias, dic_divisoes, divisoes)		#
+#	Relaciona quais foram as [palavra] usadas por uma [divisao] ao todo 	#
+#																			#
+#############################################################################
 
 
 def relaciona_divisao_palavras(ocorrencias, dic_divisoes, divisoes):
@@ -395,13 +419,13 @@ def relaciona_divisao_palavras(ocorrencias, dic_divisoes, divisoes):
 				if not len(word) <= 2 or word == 'rg':
 					# Se a [word] já está no dicionario da [divisao] que está fazendo a ocorrencia
 					# Adiciona +1 ocorrencia pra [word] nessa [divisao]
-					if word in dic_divisoes[divisao]['palavras']:
-						dic_divisoes[divisao]['palavras'][word] += 1
+					if word in dic_divisoes[divisao]:
+						dic_divisoes[divisao][word] += 1
 
 					# Se a [word] não está no dicionario das [divisoes]
 					# Adiciona-a e já coloca que ela tem 1 ocorrencia
 					else:
-						dic_divisoes[divisao]['palavras'][word] = 1
+						dic_divisoes[divisao][word] = 1
 
 
 			# Para ficar sincronizado a ocorrencia com as divisoes
@@ -410,6 +434,9 @@ def relaciona_divisao_palavras(ocorrencias, dic_divisoes, divisoes):
 			break
 
 	return dic_divisoes
-	
+
+
+
+
 if __name__ == '__main__':
 	main()
