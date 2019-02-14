@@ -148,7 +148,10 @@ def limpa_ocorrencias(col):
 
 		# Remove caracteres especiais das strings
 		# Exceção [, ;]
-		col[i] = re.sub('[\.\+\-\*\'\(\)\\\\/="@!,:_]+', ' ', col[i])
+		col[i] = re.sub('[\.\+\-\*\'\(\)\\\\/="@!:_]+', ' ', col[i])
+
+		# Substitui ; por ,
+		col[i] = re.sub(';+', ',', col[i])
 
 		# Remove trailling whitespace [' '] do começo e fim das strings
 		col[i] = col[i].strip()
