@@ -33,9 +33,9 @@ def main():
 	del divisoes[0]  # Deleta o nome da coluna (fk_cd_divisao) da lista
 
 	# Cria os arquivos que serão escritos as ocorrencias
-	txt_ocorrencias		= open(r'total de ocorrencias2.txt', 		'w+')
-	txt_solicitantes	= open(r'ocorrencia por solicitante2.txt', 	'w+')
-	txt_divisao			= open(r'ocorrencia por divisao2.txt', 		'w+')
+	txt_ocorrencias		= open(r'total de ocorrencias.txt', 		'w+')
+	txt_solicitantes	= open(r'ocorrencia por solicitante.txt', 	'w+')
+	txt_divisao			= open(r'ocorrencia por divisao.txt', 		'w+')
 
 
 	#########################################
@@ -56,7 +56,7 @@ def main():
 
 	# Escreve as ocorrências no formato CSV
 	for palavra, ocorrencia in dic_ocorrencias.items():
-		txt_ocorrencias.write('{};{};'.format(palavra, ocorrencia))
+		txt_ocorrencias.write('{};{};\n'.format(palavra, ocorrencia))
 
 
 	#########################################
@@ -360,6 +360,8 @@ def escreve_txt(txt, dicionario):
 
 			# Escreve "[palavra];[ocorrencias];"
 			txt.write('{};{};'.format(palavra, dicionario[chave][palavra]))
+
+		txt.write('\n')
 
 	return
 
