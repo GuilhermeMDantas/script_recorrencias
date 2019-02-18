@@ -2,6 +2,7 @@ import xlrd, xlsxwriter		# Manage xls file
 import unidecode			# Remover acentos
 import re 					# Tratamento específico de string
 import collections			# Criar nested dictionary (relação solicitante/divisao palavra)
+import csv
 
 def main():
 
@@ -33,9 +34,13 @@ def main():
 	del divisoes[0]  # Deleta o nome da coluna (fk_cd_divisao) da lista
 
 	# Cria os arquivos que serão escritos as ocorrencias
-	txt_ocorrencias		= open(r'total de ocorrencias com virgula.txt', 			'w+')
-	txt_solicitantes	= open(r'ocorrencia por solicitante com virgula.txt', 	'w+')
-	txt_divisao			= open(r'ocorrencia por divisao com virgula.txt', 		'w+')
+	#txt_ocorrencias		= open(r'total de ocorrencias com virgula.txt', 		'w+')
+	#txt_solicitantes	= open(r'ocorrencia por solicitante com virgula.txt', 	'w+')
+	#txt_divisao			= open(r'ocorrencia por divisao com virgula.txt', 		'w+')
+
+	csv_ocorrencias		= r'total de ocorrencias.csv'
+	csv_solicitantes	= r'ocorrencia por solicitante.csv'
+	csv_divisao			= r'ocorrencia por divisao.csv'
 
 
 	#########################################
@@ -54,18 +59,14 @@ def main():
 	dic_ocorrencias = relaciona_elementos(ocorrencias, dic_ocorrencias)
 	#print('Ocorrencias Total:\n{' + '\n' + '\n'.join('\t{}:{}'.format(k, v) for k, v in dic_ocorrencias.items()) + '\n' + '}')
 
-	# Escreve as ocorrências no formato CSV
-	for palavra, ocorrencia in dic_ocorrencias.items():
-		# Escreve Palavra;Ocorrencia e muda de linha para a proxima ocorrência
-		txt_ocorrencias.write('{};{}\n'.format(palavra, ocorrencia))
-
+	escreve_csv(csv_ocorrencias, dic_ocorrencias, total = True)
 
 	#########################################
 	#										#
 	#	Faz o tratamento dos solicitantes 	#
 	#										#
 	#########################################
-
+	
 	# Limpa os nomes e deixa tudo lowercase
 	solicitantes = limpa_solicitantes(solicitantes)
 
@@ -79,8 +80,8 @@ def main():
 	dic_solicitantes = relaciona_elementos(ocorrencias, dic_solicitantes, solicitantes)
 
 	# Escreve as ocorrências por solicitante no formato CSV
-	escreve_txt(txt_solicitantes, dic_solicitantes)		
-
+	escreve_csv(csv_solicitantes, dic_solicitantes, soli_divi = True)
+	
 	#####################################
 	#									#
 	#	Faz o tratamento das divisoes	#
@@ -100,7 +101,7 @@ def main():
 	dic_divisoes = relaciona_elementos(ocorrencias, dic_divisoes, divisoes)
 
 	# Escreve as ocorrências por divisão no formato CSV
-	escreve_txt(txt_divisao, dic_divisoes)
+	escreve_csv(csv_divisao, dic_divisoes, soli_divi = True)
 
 	return
 
@@ -140,6 +141,9 @@ def limpa_ocorrencias(col):
 		# Remove [\r] soltos no meio do texto
 		col[i] = col[i].replace(r'\r', ' ')
 
+		# Remove [\n] soltos no meio do texto
+		col[i] = col[i].replace(r'\n', ' ')
+
 		# Deixa tudo lower case
 		col[i] = col[i].lower()
 
@@ -147,8 +151,7 @@ def limpa_ocorrencias(col):
 		col[i] = unidecode.unidecode(col[i])
 
 		# Remove caracteres especiais das strings
-		# Exceção [, ;]
-		col[i] = re.sub('[\.\+\-\*\'\(\)\\\\/="@!,:_]+', ' ', col[i])
+		col[i] = re.sub('[\[\].+\-*\'()\?\\\\/="@!:_,;]+', ' ', col[i])
 
 		# Remove trailling whitespace [' '] do começo e fim das strings
 		col[i] = col[i].strip()
@@ -195,7 +198,13 @@ def limpa_solicitantes(col):
 		col[i] = solicitante.replace('text:\'', '').rstrip('\'').lower()
 
 		# Remove caracteres especiais dos nomes
-		col[i] = re.sub('[\.\+\-\*\'\(\)\\\\/=",@!:_;]+', ' ', col[i])
+		col[i] = re.sub('[\[\].+\-*\'()\?\\\\/=",@!:_;|]+', ' ', col[i])
+
+		# Remove trailling whitespace [' '] do começo e fim dos nomes
+		col[i] = col[i].strip()
+
+		# Remove espaços extras entre os nomes
+		col[i] = re.sub(' +', ' ', col[i])
 
 		i += 1
 
@@ -285,15 +294,16 @@ def relaciona_elementos(ocorrencias, dicionario, col = None):
 				if not len(palavra) <= 2 or palavra == 'rg':
 					try:
 						# Se a [palavra] JÁ está no dicionario, adiciona +1 ocorrência a ela
-						if palavra in dicionario:
-							dicionario[palavra] += 1
+						#if palavra in dicionario:
+						dicionario[palavra] += 1
 
 						# Se a [palavra] NÃO está no dicionario, adiciona uma entrada a ela
-						else:
-							dicionario[palavra] = 1
+						#else:
+							#dicionario[palavra] = 1
 
-					except Exception as e:
-						print('Houve um erro\n{}'.format(e))
+					except KeyError as e:
+						#print('Houve um erro\n{}'.format(e))
+						dicionario[palavra] = 1
 
 
 		return dicionario
@@ -318,15 +328,16 @@ def relaciona_elementos(ocorrencias, dicionario, col = None):
 					if not len(palavra) <= 2 or palavra == 'rg':
 						try:
 							# Se a [palavra] JÁ está no dicionario, adiciona +1 ocorrência a ela
-							if palavra in dicionario[elemento]:
-								dicionario[elemento][palavra] += 1
+							#if palavra in dicionario[elemento]:
+							dicionario[elemento][palavra] += 1
 
 							# Se a [palavra] NÃO está no dicionario, adiciona uma entrada a ela
-							else:
-								dicionario[elemento][palavra] = 1
+							#else:
+								#dicionario[elemento][palavra] = 1
 
-						except Exception as e:
-							print("Houve um erro\n{}".format(e))
+						except KeyError as e:
+							#print("Houve um erro\n{}".format(e))
+							dicionario[elemento][palavra] = 1
 
 				# Sincroniza as ocorrencias com os solicitantes
 				i += 1
@@ -385,6 +396,51 @@ def escreve_txt(txt, dicionario):
 
 		# Muda de linha para cada solicitante/divisão
 		txt.write('\n')
+
+	return
+
+def escreve_csv(csvfile, dicionario, total = False, soli_divi = False):
+
+	
+
+	# Abre o .csv
+	with open(csvfile, 'w', newline='') as arquivo:
+
+		if total:
+
+			# O objeto que vai escrever no formato CSV
+			writer = csv.writer(arquivo, delimiter=';')
+
+			
+			for palavra, ocorrencia in dicionario.items():
+
+				# Escreve a palavra numa coluna e o numero de ocorrencias em outra
+				writer.writerow(['{},{}'.format(palavra, ocorrencia)])
+
+		elif soli_divi:
+
+			# Objeto que escreve no formato CSV
+			writer = csv.writer(arquivo, delimiter=';')
+
+			# Por solicitante/divisão
+			for chave, palavras in dicionario.items():
+
+				# Essa é a string que vai ser escrita no formato .csv
+				output = ''
+
+				# Por palavra e ocorrencia desse(a) solicitante/divisão
+				for palavra, ocorrencia in palavras.items():
+
+					# Adiciona ,palavra,ocorrencias
+					output += ',{},{}'.format(palavra, ocorrencia)
+
+
+				# Escreve o output numa só linha no formato .csv
+				writer.writerow(['{}{}'.format(chave, output)])
+
+
+		else:
+			print('no input given')
 
 	return
 
