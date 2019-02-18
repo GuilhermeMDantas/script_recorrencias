@@ -4,6 +4,72 @@ import re 					# Tratamento específico de string
 import collections			# Criar nested dictionary (relação solicitante/divisao palavra)
 import csv
 
+#############################
+#							#
+#	Definição das divisões	#
+#							#
+#############################
+# A chave foi definida como string
+# Porque as chaves da coluna de divisão também são strings
+divisoes_nome = {
+	'3':'',
+	'4':'',
+	'5':'',
+	'6':'',
+	'7':'',
+	'8':'',
+	'9':'',
+	'10':'',
+	'11':'',
+	'12':'',
+	'13':'',
+	'14':'',
+	'15':'',
+	'16':'',
+	'17':'',
+	'18':'',
+	'19':'',
+	'20':'',
+	'21':'',
+	'22':'',
+	'23':'',
+	'24':'',
+	'25':'',
+	'26':'',
+	'27':'',
+	'28':'',
+	'29':'',
+	'30':'',
+	'31':'',
+	'32':'',
+	'33':'',
+	'34':'',
+	'35':'',
+	'36':'',
+	'37':'SEM',
+	'38':'',
+	'39':'',
+	'40':'',
+	'41':'',
+	'42':'',
+	'43':'',
+	'44':'',
+	'45':'',
+	'47':'',
+	'48':'',
+	'50':'',
+	'53':'',
+	'54':'',
+	'55':'',
+	'56':'',
+	'57':'',
+	'58':'',
+	'59':'',
+	'60':'',
+	'61':'',
+	'62':''
+}
+
 def main():
 
 	# Abre os sats
@@ -25,7 +91,7 @@ def main():
 	ocorrencias = [str(ocorrencia) for ocorrencia in col_ocorrencia]
 	del ocorrencias[0]  # Deleta o nome da coluna (dc_ocorrencia) da lista
 
-	# Pega todos os solicitantes e já os transforma em string
+	# Pega todos os solicitantes e já ogit ps transforma em string
 	solicitantes = [str(solicitante) for solicitante in col_solicitante]
 	del solicitantes[0]  # Deleta o nome da coluna (nm_solicitante) da lista
 
@@ -34,10 +100,6 @@ def main():
 	del divisoes[0]  # Deleta o nome da coluna (fk_cd_divisao) da lista
 
 	# Cria os arquivos que serão escritos as ocorrencias
-	#txt_ocorrencias		= open(r'total de ocorrencias com virgula.txt', 		'w+')
-	#txt_solicitantes	= open(r'ocorrencia por solicitante com virgula.txt', 	'w+')
-	#txt_divisao			= open(r'ocorrencia por divisao com virgula.txt', 		'w+')
-
 	csv_ocorrencias		= r'total de ocorrencias.csv'
 	csv_solicitantes	= r'ocorrencia por solicitante.csv'
 	csv_divisao			= r'ocorrencia por divisao.csv'
@@ -66,7 +128,7 @@ def main():
 	#	Faz o tratamento dos solicitantes 	#
 	#										#
 	#########################################
-	
+	"""
 	# Limpa os nomes e deixa tudo lowercase
 	solicitantes = limpa_solicitantes(solicitantes)
 
@@ -81,7 +143,7 @@ def main():
 
 	# Escreve as ocorrências por solicitante no formato CSV
 	escreve_csv(csv_solicitantes, dic_solicitantes, soli_divi = True)
-	
+	"""
 	#####################################
 	#									#
 	#	Faz o tratamento das divisoes	#
@@ -436,7 +498,13 @@ def escreve_csv(csvfile, dicionario, total = False, soli_divi = False):
 
 
 				# Escreve o output numa só linha no formato .csv
-				writer.writerow(['{}{}'.format(chave, output)])
+				try:
+					# Se for divisão, vai pegar o nome da divisão e jogar no dicionario de nomes das divisões
+					writer.writerow(['{}{}'.format(divisoes_nome[chave], output)])
+				except KeyError:
+					# Se não for uma divisão
+					# O dicionario retornará KeyError e irá escrever o nome do solicitante
+					writer.writerow(['{}{}'.format(chave, output)])
 
 
 		else:
